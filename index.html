@@ -132,11 +132,12 @@ tbody tr:nth-child(even) td.cli{background:#faf8f1}tbody tr:nth-child(odd) td.cl
 .calcbox b{color:var(--green-dk);font-size:15px}
 .mfoot{padding:15px 24px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
 .mini{font-size:11px;color:var(--muted)}
+.hamb{display:none;background:var(--green-dk);color:#fff;width:40px;height:40px;border-radius:10px;font-size:20px;flex-shrink:0}.tbrow{display:flex;align-items:center;gap:12px}.backdrop{display:none}
 @media(max-width:820px){
- body{flex-direction:column}
- .side{width:100%;height:auto;position:sticky;flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 14px}
- .side .brand{padding:0;margin-right:8px}.side nav{flex-direction:row;flex-wrap:wrap;margin:0}.side .grow{display:none}
- .side .data{border:0;padding:0;flex-direction:row}.side .hint{display:none}
+ .main{width:100%}
+ .side{position:fixed;left:0;top:0;height:100%;width:250px;transform:translateX(-100%);transition:transform .25s ease;z-index:120;box-shadow:4px 0 24px rgba(0,0,0,.35);overflow-y:auto}body.menu-open .side{transform:translateX(0)}body.menu-open .backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:110}
+ .hamb{display:inline-flex;align-items:center;justify-content:center}.kpis{grid-template-columns:1fr 1fr;gap:9px}.kpi .val{font-size:20px}.panels{grid-template-columns:1fr}
+ .topbar h2{font-size:20px}.content{padding:16px 13px 90px}.toolbar input[type=text]{min-width:0;flex:1 1 auto}
  .main{height:auto}
  .fgrid{grid-template-columns:1fr}.field.full,.calcbox{grid-column:1}
 }
@@ -169,6 +170,7 @@ tbody tr:nth-child(even) td.cli{background:#faf8f1}tbody tr:nth-child(odd) td.cl
   <button class="skip" onclick="skipLocal()">Usar só neste navegador (modo local, sem conta)</button>
  </div>
 </div>
+<div class="backdrop" onclick="toggleMenu()"></div>
 <aside class="side">
  <div class="brand"><div class="leaf">🌱</div><div><b>Ateliê das Suculentas</b><span>CRM &amp; Atendimento</span></div></div>
  <nav id="nav">
@@ -191,7 +193,7 @@ tbody tr:nth-child(even) td.cli{background:#faf8f1}tbody tr:nth-child(odd) td.cl
 </aside>
 
 <div class="main">
- <div class="topbar"><h2 id="ttl">Painel</h2><p id="sub">Atualiza sozinho conforme você preenche os atendimentos.</p></div>
+ <div class="topbar"><div class="tbrow"><button class="hamb" onclick="toggleMenu()" aria-label="Menu">☰</button><h2 id="ttl">Painel</h2></div><p id="sub">Atualiza sozinho conforme você preenche os atendimentos.</p></div>
  <div class="content">
 
   <section class="view active" id="painel">
@@ -362,7 +364,8 @@ document.getElementById('nav').addEventListener('click',e=>{const b=e.target.clo
  document.querySelectorAll('#nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(b.dataset.v).classList.add('active');
  const v=b.dataset.v;document.getElementById('ttl').textContent=b.textContent.trim();document.getElementById('sub').textContent=SUBS[v];
- if(v==='painel')renderPainel();if(v==='clientes')renderClientes();if(v==='produtos')renderProdutos();});
+ if(v==='painel')renderPainel();if(v==='clientes')renderClientes();if(v==='produtos')renderProdutos();document.body.classList.remove('menu-open');});
+function toggleMenu(){document.body.classList.toggle('menu-open');}
 function setView(m){viewMode=m;document.getElementById('vbTable').classList.toggle('active',m==='table');document.getElementById('vbKanban').classList.toggle('active',m==='kanban');
  document.getElementById('tableView').style.display=m==='table'?'':'none';document.getElementById('kanbanView').style.display=m==='kanban'?'':'none';renderAtend();}
 
