@@ -138,7 +138,7 @@ tbody tr:nth-child(even) td.cli{background:#faf8f1}tbody tr:nth-child(odd) td.cl
  .side{position:fixed;left:0;top:0;height:100%;width:250px;transform:translateX(-100%);transition:transform .25s ease;z-index:120;box-shadow:4px 0 24px rgba(0,0,0,.35);overflow-y:auto}body.menu-open .side{transform:translateX(0)}body.menu-open .backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:110}
  .hamb{display:inline-flex;align-items:center;justify-content:center}.kpis{grid-template-columns:1fr 1fr;gap:9px}.kpi .val{font-size:20px}.panels{grid-template-columns:1fr}
  .topbar h2{font-size:20px}.content{padding:16px 13px 90px}.toolbar input[type=text]{min-width:0;flex:1 1 auto}
- .main{height:auto}
+ html,body{height:auto}body{display:block}.main{height:auto;overflow:visible;overflow-x:hidden}.tablewrap{max-height:none;-webkit-overflow-scrolling:touch}th{position:static}td.cli,th.cli{position:static}.content{padding:14px 12px 90px}
  .fgrid{grid-template-columns:1fr}.field.full,.calcbox{grid-column:1}
 }
 .login{position:fixed;inset:0;background:linear-gradient(160deg,#1c4327,#15331e);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
@@ -298,7 +298,7 @@ async function apiGet(){const r=await fetch(SHEET_URL+(SHEET_URL.includes("?")?"
 async function apiPost(action,payload){try{await fetch(SHEET_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({token:TOKEN,action,payload})});}catch(e){console.warn("sync",e);}}
 function syncOrder(o){if(SHEET_URL)apiPost("upsert",o);}
 function syncDelete(id){if(SHEET_URL)apiPost("delete",{id});}
-function syncConfig(){if(SHEET_URL)apiPost("config",{insumos:state.insumos,precos:state.precos,clientsMeta:state.clientsMeta});}
+function syncConfig(){if(SHEET_URL)apiPost("config",{insumos:state.insumos,precos:state.precos,clientsMeta:state.clientsMeta,fixos:state.fixos});}
 function setStatus(){const el=document.getElementById("connStatus");if(el)el.textContent=SHEET_URL?(online?"☁ Conectado à planilha":"⚠ Sem conexão (usando local)"):"💾 Local (1 navegador)";}
 
 function defaultData(){
@@ -343,7 +343,7 @@ function defaultData(){
   ["Claudia Maria","","Evento","",PE,"40 un + Rótulo Personalizado + TAG",40,"Pago","A combinar","",B],
  ];
  const orders=raw.map((o,i)=>({id:i+1,data:o[10][0],cliente:o[0],whats:"",cidade:o[1],canal:(i%5===0?"Instagram (orgânico)":"Indicação"),tipoCli:o[2],tipoEv:o[3],dataEv:o[10][1],produto:o[4],descr:o[5],qtd:o[6],valorUnit:precos[o[4]],estagio:"Entregue",statusPag:o[7],formaPag:"",entrega:o[8],followup:"",obs:o[9]}));
- return {orders,clientsMeta:{},insumos,precos,seq:orders.length+1};
+ return {orders,clientsMeta:{},insumos,precos,fixos:{salarioSemana:325,anunciosDia:100},seq:orders.length+1};
 }
 function load(){try{const s=localStorage.getItem(KEY);if(s)return JSON.parse(s);}catch(e){}return memFallback;}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){memFallback=state;}}
@@ -374,7 +374,8 @@ function renderPainel(){const os=state.orders,won=["Fechado (ganho)","Em produç
  const pipe=os.filter(o=>["Orçamento enviado","Negociação"].includes(o.estagio)).reduce((s,o)=>s+calc(o).vt,0);
  const pend=os.filter(o=>o.statusPag==="Pendente").reduce((s,o)=>s+calc(o).vt,0);
  const od=os.filter(o=>o.followup&&o.followup<todayISO()).length;const conv=n?os.filter(o=>won.includes(o.estagio)).length/n:0;
- const k=[["Faturamento total",BRL(fat),"","💰"],["Custo de produtos",BRL(cus),"t","🧾"],["Custo de entregas",BRL(ent),"t","🚚"],["Custo médio/entrega",BRL(nent?ent/nent:0),"g","🚚"],["Margem total (líq.)",BRL(mg),"","🌿"],["Margem média",PCT(fat?mg/fat:0),"g","📈"],["Total de pedidos",n,"b","📦"],["Ticket médio",BRL(n?fat/n:0),"","🎯"],["Pipeline em aberto",BRL(pipe),"g","🔄"],["Pagamentos pendentes",BRL(pend),"t","⏳"],["Follow-ups atrasados",od,"t","🔔"],["Taxa de conversão",PCT(conv),"","✅"]];
+ const f=state.fixos||{salarioSemana:0,anunciosDia:0};const adsMes=f.anunciosDia*365/12,salMes=f.salarioSemana*52/12,fixMes=salMes+adsMes;
+ const k=[["Faturamento total",BRL(fat),"","💰"],["Custo de produtos",BRL(cus),"t","🧾"],["Custo de entregas",BRL(ent),"t","🚚"],["Custo médio/entrega",BRL(nent?ent/nent:0),"g","🚚"],["Anúncios/mês (≈)",BRL(adsMes),"t","📣"],["Salário/mês (≈)",BRL(salMes),"t","👤"],["Custos fixos/mês (≈)",BRL(fixMes),"t","🏷️"],["Margem total (líq.)",BRL(mg),"","🌿"],["Margem média",PCT(fat?mg/fat:0),"g","📈"],["Total de pedidos",n,"b","📦"],["Ticket médio",BRL(n?fat/n:0),"","🎯"],["Pipeline em aberto",BRL(pipe),"g","🔄"],["Pagamentos pendentes",BRL(pend),"t","⏳"],["Follow-ups atrasados",od,"t","🔔"],["Taxa de conversão",PCT(conv),"","✅"]];
  document.getElementById('kpis').innerHTML=k.map(x=>`<div class="kpi ${x[2]}"><div class="ic">${x[3]}</div><div class="lbl">${x[0]}</div><div class="val">${x[1]}</div></div>`).join('');
  const byStage=STAGES.map(s=>[s,os.filter(o=>o.estagio===s).length]).filter(x=>x[1]>0);chart('chartEstagio',byStage,v=>v);
  const bc={};os.forEach(o=>{bc[o.canal]=(bc[o.canal]||0)+calc(o).vt;});chart('chartCanal',Object.entries(bc).sort((a,b)=>b[1]-a[1]),BRL);
@@ -439,15 +440,23 @@ function renderClientes(){const q=(document.getElementById('searchCli').value||'
  h+='</tbody></table>';document.getElementById('clientesView').innerHTML=h;
  document.querySelectorAll('#clientesView [data-cli]').forEach(el=>el.addEventListener('change',()=>{const cli=el.dataset.cli,k=el.dataset.k;state.clientsMeta[cli]=state.clientsMeta[cli]||{};state.clientsMeta[cli][k]=el.value;save();syncConfig();}));}
 
-function renderProdutos(){const i=state.insumos;
+function renderProdutos(){if(!state.fixos)state.fixos=defaultData().fixos;const f=state.fixos;const i=state.insumos;
  const ins=[["planta","Planta","un"],["rotulo","Rótulo / Tag","un"],["pedraSaco","Pedra (saco 20 kg)","saco"],["pedraGramas","Pedra — gramas por unidade","g"],["cachepo","Cachepô de juta","un"],["embalagem","Embalagem / caixa","un"],["madeirinha","Madeirinha","un"],["maodeobra","Mão de obra por unidade","un"]];
  let h='<table class="itable"><thead><tr><th>Insumo</th><th>Valor</th><th>Unid.</th><th class="num">Custo/un</th></tr></thead><tbody>';
  ins.forEach(([k,nm,u])=>{const cu=k==='pedraSaco'?pedraUnit():(k==='pedraGramas'?null:i[k]);h+=`<tr><td>${nm}</td><td><input type="number" step="0.01" value="${i[k]}" data-ins="${k}"></td><td>${u}</td><td class="num">${k==='pedraGramas'?'—':BRL(cu)}</td></tr>`;});
- h+='</tbody></table>';document.getElementById('insumosBox').innerHTML=h;
+ h+='</tbody></table>';
+ h+='<div style="margin-top:16px;font-weight:700;color:#1c4327;font-family:Georgia,serif">Custos fixos / operação</div>';
+ h+='<table class="itable" style="margin-top:8px"><thead><tr><th>Item</th><th>Valor</th><th>Período</th><th class="num">Por mês (≈)</th></tr></thead><tbody>';
+ h+='<tr><td>Salário do funcionário</td><td><input type="number" step="1" value="'+f.salarioSemana+'" data-fixo="salarioSemana"></td><td>por semana</td><td class="num">'+BRL(f.salarioSemana*52/12)+'</td></tr>';
+ h+='<tr><td>Investimento em anúncios</td><td><input type="number" step="1" value="'+f.anunciosDia+'" data-fixo="anunciosDia"></td><td>por dia</td><td class="num">'+BRL(f.anunciosDia*365/12)+'</td></tr>';
+ h+='<tr style="background:#f1f5ee"><td><b>Total de custos fixos</b></td><td></td><td></td><td class="num"><b>'+BRL(f.salarioSemana*52/12+f.anunciosDia*365/12)+'</b></td></tr>';
+ h+='</tbody></table>';
+ document.getElementById('insumosBox').innerHTML=h;
  let p='<table class="itable"><thead><tr><th>Produto</th><th class="num">Custo</th><th>Preço</th><th class="num">Margem</th><th class="num">%</th></tr></thead><tbody>';
  PRODUTOS.forEach(nm=>{const cu=custoProduto(nm),pr=state.precos[nm]||0,mg=pr-cu;p+=`<tr><td>${nm}</td><td class="num">${BRL(cu)}</td><td><input type="number" step="0.01" value="${pr}" data-preco="${esc(nm)}"></td><td class="num">${BRL(mg)}</td><td class="num">${PCT(pr?mg/pr:0)}</td></tr>`;});
  p+='</tbody></table>';document.getElementById('produtosBox').innerHTML=p;
  document.querySelectorAll('[data-ins]').forEach(el=>el.addEventListener('change',()=>{state.insumos[el.dataset.ins]=+el.value||0;save();syncConfig();renderProdutos();}));
+ document.querySelectorAll('[data-fixo]').forEach(el=>el.addEventListener('change',()=>{state.fixos[el.dataset.fixo]=+el.value||0;save();syncConfig();renderProdutos();renderPainel();}));
  document.querySelectorAll('[data-preco]').forEach(el=>el.addEventListener('change',()=>{state.precos[el.dataset.preco]=+el.value||0;save();syncConfig();renderProdutos();}));}
 
 function exportJSON(){dl(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),'crm_atelie_backup_'+todayISO()+'.json');}
@@ -461,12 +470,12 @@ function renderAll(){renderPainel();renderAtend();renderClientes();renderProduto
 async function init(){
  try{
   if(SHEET_URL){const data=await apiGet();online=true;
-   if(data&&data.orders&&data.orders.length){state={orders:data.orders,clientsMeta:(data.config&&data.config.clientsMeta)||{},insumos:(data.config&&data.config.insumos)||defaultData().insumos,precos:(data.config&&data.config.precos)||defaultData().precos,seq:data.orders.reduce((m,o)=>Math.max(m,Number(o.id)||0),0)+1};}
+   if(data&&data.orders&&data.orders.length){state={orders:data.orders,clientsMeta:(data.config&&data.config.clientsMeta)||{},insumos:(data.config&&data.config.insumos)||defaultData().insumos,precos:(data.config&&data.config.precos)||defaultData().precos,fixos:(data.config&&data.config.fixos)||defaultData().fixos,seq:data.orders.reduce((m,o)=>Math.max(m,Number(o.id)||0),0)+1};}
    else{state=defaultData();apiPost("seed",{orders:state.orders,config:{insumos:state.insumos,precos:state.precos,clientsMeta:state.clientsMeta}});}
   }else{state=load()||defaultData();}
  }catch(e){online=false;state=load()||defaultData();}
  if(!state||!state.orders)state=defaultData();
- if(!state.clientsMeta)state.clientsMeta={};if(!state.precos)state.precos=defaultData().precos;if(!state.insumos)state.insumos=defaultData().insumos;
+ if(!state.clientsMeta)state.clientsMeta={};if(!state.precos)state.precos=defaultData().precos;if(!state.insumos)state.insumos=defaultData().insumos;if(!state.fixos)state.fixos=defaultData().fixos;
  save();initFilters();renderAll();setStatus();
 }
 function reloadData(){init();}
