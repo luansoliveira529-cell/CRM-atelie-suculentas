@@ -458,7 +458,7 @@ function afterAuth(user){authUser=user||"";SHEET_URL=_cfg.url||"";TOKEN=_cfg.tok
 async function doLogin(){var urlEl=document.getElementById('lg_url'),pwEl=document.getElementById('lg_pw'),errEl=document.getElementById('lg_err');var url=((urlEl&&urlEl.value)||"").trim(),pw=((pwEl&&pwEl.value)||"").trim();if(!url){if(errEl)errEl.textContent="Cole o link da planilha para entrar com senha. Sem link, use o modo local abaixo.";return;}if(!pw){if(errEl)errEl.textContent="Digite a senha.";return;}if(errEl)errEl.textContent="Verificando...";_cfg={url:url,token:pw};SHEET_URL=url;TOKEN=pw;try{var data=await apiGet();online=true;localStorage.setItem(CFGKEY,JSON.stringify(_cfg));afterAuth((data&&data.user)||"");}catch(e){if(errEl)errEl.textContent="Senha ou link incorretos.";}}
 function skipLocal(){_cfg={url:"",token:""};localStorage.setItem(CFGKEY,JSON.stringify(_cfg));SHEET_URL="";TOKEN="";afterAuth("");}
 function sair(){try{localStorage.removeItem(CFGKEY);}catch(e){}location.reload();}
-async function gate(){_cfg=loadCfg();if(_cfg.url&&_cfg.token){SHEET_URL=_cfg.url;TOKEN=_cfg.token;try{var data=await apiGet();online=true;afterAuth((data&&data.user)||"");return;}catch(e){showLogin(_cfg.url);return;}}if(_cfg.url===""&&localStorage.getItem(CFGKEY)){afterAuth("");return;}showLogin((_cfg&&_cfg.url)||"");}
+async function gate(){_cfg=loadCfg();if(_cfg.url&&_cfg.token){SHEET_URL=_cfg.url;TOKEN=_cfg.token;try{var data=await apiGet();online=true;afterAuth((data&&data.user)||"");return;}catch(e){showLogin(_cfg.url);return;}}showLogin((_cfg&&_cfg.url)||"");}
 gate();
 </script>
 </body>
