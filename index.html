@@ -194,7 +194,7 @@ tbody tr:hover{background:#f0f5ec}
 .mcol.cur .mlbl{color:var(--terra,#c2693f);font-weight:800}
 .mval{font-size:10px;font-weight:800;color:var(--green-dk);white-space:nowrap;height:14px}
 .mlbl{font-size:10px;color:var(--muted);font-weight:700;white-space:nowrap}
-@media(max-width:760px){.mchart{height:150px}.mval{font-size:8.5px}.mlbl{font-size:8.5px}.mtrack{max-width:30px}}
+@media(max-width:760px){.mchart{height:165px;gap:9px;overflow-x:auto;overflow-y:hidden;justify-content:flex-start;padding-bottom:8px;-webkit-overflow-scrolling:touch}.mcol{flex:0 0 auto;min-width:44px}.mval{font-size:9px}.mlbl{font-size:9px}.mtrack{max-width:34px}}
 </style>
 </head>
 <body>
@@ -319,7 +319,7 @@ tbody tr:hover{background:#f0f5ec}
 
 <div class="overlay" id="overlay">
  <div class="modal">
-  <div class="mhead"><h2 id="mTitle">Novo atendimento</h2></div>
+  <div class="mhead" style="display:flex;align-items:center;justify-content:space-between;gap:12px"><h2 id="mTitle">Novo atendimento</h2><button type="button" onclick="closeForm()" aria-label="Fechar" title="Fechar" style="background:transparent;border:0;color:#fff;font-size:24px;line-height:1;cursor:pointer;padding:0 6px">✕</button></div>
   <div class="mbody"><div class="fgrid">
     <div class="field"><label>Data do contato</label><input type="date" id="f_data"></div>
     <div class="field"><label>Cliente</label><input type="text" id="f_cliente" placeholder="Nome"></div>
@@ -655,7 +655,7 @@ function saveForm(){if(!f_cliente.value.trim()){alert('Informe o nome do cliente
  const d={data:f_data.value,cliente:f_cliente.value.trim(),whats:f_whats.value.trim(),cidade:f_cidade.value.trim(),canal:f_canal.value,tipoCli:f_tipo.value,tipoEv:f_evento.value,dataEv:f_dataEv.value,produto:f_produto.value,descr:f_descr.value.trim(),qtd:+f_qtd.value||0,valorUnit:+f_valor.value||0,estagio:f_estagio.value,statusPag:f_statuspag.value,formaPag:f_formapag.value,entrega:f_entrega.value,custoEntrega:+f_custoent.value||0,followup:f_followup.value,obs:f_obs.value.trim()};
  let _sv;if(currentId){_sv=Object.assign(state.orders.find(x=>x.id===currentId),d);logAct('atualizou o atendimento #'+_sv.id+' ('+_sv.cliente+')');}else{d.id=state.seq++;_sv=d;state.orders.unshift(d);logAct('criou o atendimento #'+d.id+' ('+d.cliente+')');}save();syncOrder(_sv);closeForm();renderAtend();renderPainel();}
 function deleteCurrent(){if(currentId&&confirm('Excluir este atendimento?')){const _id=currentId;logAct('excluiu o atendimento #'+_id);state.orders=state.orders.filter(x=>x.id!==_id);save();syncDelete(_id);closeForm();renderAtend();renderPainel();}}
-document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeForm();});
+document.getElementById('overlay').addEventListener('click',function(e){/* clicar fora nao fecha: evita perder o que foi digitado */});
 
 function aggregateClients(){const m={};state.orders.forEach(o=>{const k=o.cliente;if(!m[k])m[k]={cliente:k,pedidos:0,total:0,ultima:'',cidade:o.cidade,canal:o.canal};const c=calc(o);m[k].pedidos++;m[k].total+=c.vt;if(o.data>m[k].ultima)m[k].ultima=o.data;if(o.cidade)m[k].cidade=o.cidade;});return Object.values(m).sort((a,b)=>b.total-a.total);}
 function renderClientes(){const q=(document.getElementById('searchCli').value||'').toLowerCase();const list=aggregateClients().filter(c=>c.cliente.toLowerCase().includes(q));const cut=new Date(Date.now()-180*864e5).toISOString().slice(0,10);
