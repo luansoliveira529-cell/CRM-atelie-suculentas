@@ -203,6 +203,8 @@ tbody tr:hover{background:#f0f5ec}
   <div class="leaf">🌱</div>
   <h2>Ateliê das Suculentas</h2>
   <p>CRM · acesso restrito à equipe</p>
+  <label>Seu nome (aparece pra equipe e no histórico)</label>
+  <input type="text" id="lg_nome" placeholder="ex.: Luan">
   <label>Email</label>
   <input type="email" id="lg_email" placeholder="email da equipe" autocomplete="username" onkeydown="if(event.key==='Enter'){var p=document.getElementById('lg_pw');if(p)p.focus();}">
   <label>Senha</label>
@@ -237,7 +239,7 @@ tbody tr:hover{background:#f0f5ec}
 </aside>
 
 <div class="main">
- <div class="topbar"><div class="tbrow"><button class="hamb" onclick="toggleMenu()" aria-label="Menu">☰</button><h2 id="ttl">Painel</h2></div><p id="sub">Atualiza sozinho conforme você preenche os atendimentos.</p></div>
+ <div class="topbar"><div class="tbrow"><button class="hamb" onclick="toggleMenu()" aria-label="Menu">☰</button><h2 id="ttl">Painel</h2><span id="presenca" style="margin-left:14px;font-size:12px;color:var(--muted);font-weight:700;align-self:center;white-space:nowrap"></span></div><p id="sub">Atualiza sozinho conforme você preenche os atendimentos.</p></div>
  <div class="content">
 
   <section class="view active" id="painel">
@@ -715,12 +717,14 @@ async function init(){
 }
 function reloadData(){init();}
 let authUser="";
-function showLogin(){var l=document.getElementById('loginScreen');if(l)l.style.display='flex';var e=document.getElementById('lg_err');if(e)e.textContent="";setTimeout(function(){var em=document.getElementById('lg_email');if(em)em.focus();},60);}
+function showLogin(){var l=document.getElementById('loginScreen');if(l)l.style.display='flex';var e=document.getElementById('lg_err');if(e)e.textContent="";var nm=document.getElementById('lg_nome');if(nm&&!nm.value){var u=userName();if(u&&u!=="Equipe")nm.value=u;}setTimeout(function(){var em=document.getElementById('lg_email');if(em)em.focus();},60);}
 function hideLogin(){var l=document.getElementById('loginScreen');if(l)l.style.display='none';}
-function afterAuth(user){authUser=user||userName()||"";var w=document.getElementById('whoami');if(w)w.textContent=SHEET_URL?(authUser&&authUser!=="Equipe"?("👤 "+authUser):"☁ Conectado"):"💾 Modo local";hideLogin();init();}
-async function doLogin(){var emEl=document.getElementById('lg_email'),pwEl=document.getElementById('lg_pw'),errEl=document.getElementById('lg_err');var email=((emEl&&emEl.value)||"").trim(),pw=((pwEl&&pwEl.value)||"");if(!email){if(errEl)errEl.textContent="Digite o email.";return;}if(!pw){if(errEl)errEl.textContent="Digite a senha.";return;}if(errEl)errEl.textContent="Entrando...";try{var r=await fetch(SUPA_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"apikey":SUPA_ANON,"Content-Type":"application/json"},body:JSON.stringify({email:email,password:pw})});var j=await r.json();if(!r.ok||!j.access_token){var m=(j&&(j.error_description||j.msg||j.error))||"Email ou senha incorretos.";if(/confirm/i.test(m))m="Confirme o email desse usuário no Supabase (Authentication -> Users).";if(errEl)errEl.textContent=m;return;}ACCESS=j.access_token;_sess={access_token:j.access_token,refresh_token:j.refresh_token,email:email};saveSess(_sess);SHEET_URL=SUPA_URL;setUserName((email.split("@")[0]||"").trim());afterAuth((email.split("@")[0]||""));}catch(e){if(errEl)errEl.textContent="Falha de conexão. Tente de novo.";}}
-function skipLocal(){setUserName("Equipe");SHEET_URL="";ACCESS="";afterAuth("");}
+function afterAuth(user){authUser=user||userName()||"";var w=document.getElementById('whoami');if(w)w.textContent=SHEET_URL?(authUser&&authUser!=="Equipe"?("👤 "+authUser):"☁ Conectado"):"💾 Modo local";hideLogin();init();if(SHEET_URL){startPresence();}}
+async function doLogin(){var emEl=document.getElementById('lg_email'),pwEl=document.getElementById('lg_pw'),errEl=document.getElementById('lg_err');var nmEl=document.getElementById('lg_nome');if(nmEl&&nmEl.value.trim())setUserName(nmEl.value.trim());var email=((emEl&&emEl.value)||"").trim(),pw=((pwEl&&pwEl.value)||"");if(!email){if(errEl)errEl.textContent="Digite o email.";return;}if(!pw){if(errEl)errEl.textContent="Digite a senha.";return;}if(errEl)errEl.textContent="Entrando...";try{var r=await fetch(SUPA_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"apikey":SUPA_ANON,"Content-Type":"application/json"},body:JSON.stringify({email:email,password:pw})});var j=await r.json();if(!r.ok||!j.access_token){var m=(j&&(j.error_description||j.msg||j.error))||"Email ou senha incorretos.";if(/confirm/i.test(m))m="Confirme o email desse usuário no Supabase (Authentication -> Users).";if(errEl)errEl.textContent=m;return;}ACCESS=j.access_token;_sess={access_token:j.access_token,refresh_token:j.refresh_token,email:email};saveSess(_sess);SHEET_URL=SUPA_URL;setUserName((email.split("@")[0]||"").trim());afterAuth((email.split("@")[0]||""));}catch(e){if(errEl)errEl.textContent="Falha de conexão. Tente de novo.";}}
+function skipLocal(){var nmEl=document.getElementById('lg_nome');setUserName((nmEl&&nmEl.value.trim())||"Equipe");SHEET_URL="";ACCESS="";afterAuth("");}
 function sair(){try{localStorage.removeItem(SESKEY);}catch(e){}location.reload();}
+async function beat(){if(!SHEET_URL)return;var me=userName()||"Equipe";try{await fetch(sbUrl("presenca?on_conflict=nome"),{method:"POST",headers:sbHeaders({"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify([{nome:me,ts:new Date().toISOString()}])});var r=await fetch(sbUrl("presenca?select=nome,ts"),{headers:sbHeaders()});if(!r.ok)return;var rows=await r.json();var cut=Date.now()-60000;var on=rows.filter(function(x){return new Date(x.ts).getTime()>cut;}).map(function(x){return x.nome;});var el=document.getElementById("presenca");if(el)el.textContent=on.length?("🟢 "+on.join(" · ")):"";}catch(e){}}
+var _beatIv=null;function startPresence(){beat();if(!_beatIv)_beatIv=setInterval(beat,25000);}
 async function refreshToken(){if(!_sess||!_sess.refresh_token)return false;try{var r=await fetch(SUPA_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:{"apikey":SUPA_ANON,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:_sess.refresh_token})});var j=await r.json();if(r.ok&&j.access_token){ACCESS=j.access_token;_sess.access_token=j.access_token;if(j.refresh_token)_sess.refresh_token=j.refresh_token;saveSess(_sess);return true;}}catch(e){}return false;}
 async function gate(){_sess=loadSess();if(_sess&&_sess.refresh_token&&await refreshToken()){SHEET_URL=SUPA_URL;setUserName((_sess.email&&_sess.email.split("@")[0])||"");afterAuth((_sess.email&&_sess.email.split("@")[0])||"");return;}showLogin();}
 gate();
