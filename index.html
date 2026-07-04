@@ -228,9 +228,10 @@ tbody tr:hover{background:#f0f5ec}
  <div class="grow"></div>
  <div class="data">
   <button onclick="reloadData()">🔄 Atualizar</button>
+  <button onclick="salvarTudo()">💾 Salvar tudo</button>
   <button onclick="sair()">🔒 Sair</button>
   <div class="hint" id="whoami" style="margin-top:8px"></div>
-  <div class="hint">☁ Tudo salva sozinho. Não existe botão de salvar.</div>
+  <div class="hint">☁ Salva sozinho. Se aparecer "⚠ não salvou" no topo, toque em "Salvar tudo".</div>
   <button onclick="toggleMais()" style="background:transparent;color:var(--muted);font-size:12px;padding:6px 4px;text-align:left">⋯ Mais opções</button>
   <div id="maisOpc" style="display:none">
    <button onclick="exportCSV()">📄 Exportar CSV</button>
@@ -242,7 +243,7 @@ tbody tr:hover{background:#f0f5ec}
 </aside>
 
 <div class="main">
- <div class="topbar"><div class="tbrow"><button class="hamb" onclick="toggleMenu()" aria-label="Menu">☰</button><h2 id="ttl">Painel</h2><span id="presenca" style="margin-left:14px;font-size:12px;color:var(--muted);font-weight:700;align-self:center;white-space:nowrap"></span></div><p id="sub">Atualiza sozinho conforme você preenche os atendimentos.</p></div>
+ <div class="topbar"><div class="tbrow"><button class="hamb" onclick="toggleMenu()" aria-label="Menu">☰</button><h2 id="ttl">Painel</h2><span id="presenca" style="margin-left:14px;font-size:12px;color:var(--muted);font-weight:700;align-self:center;white-space:nowrap"></span><span id="saveStat" style="margin-left:10px;font-size:12px;font-weight:800;align-self:center;white-space:nowrap"></span></div><p id="sub">Atualiza sozinho conforme você preenche os atendimentos.</p></div>
  <div class="content">
 
   <section class="view active" id="painel">
@@ -396,17 +397,20 @@ async function apiGet(){
  try{const r2=await fetch(sbUrl("config?select=dados&id=eq.1"),{headers:sbHeaders()});if(r2.ok){const j=await r2.json();if(Array.isArray(j)&&j[0]&&j[0].dados)config=j[0].dados;}}catch(e){}
  return {orders:orders,config:config,user:""};
 }
-async function apiPost(action,payload){try{
- if(action==="upsert"){await fetch(sbUrl("pedidos?on_conflict=id"),{method:"POST",headers:sbHeaders({"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify([pickCols(payload)])});}
- else if(action==="delete"){await fetch(sbUrl("pedidos?id=eq."+encodeURIComponent(payload.id)),{method:"DELETE",headers:sbHeaders()});}
- else if(action==="config"){await fetch(sbUrl("config?on_conflict=id"),{method:"POST",headers:sbHeaders({"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify([{id:1,dados:payload}])});}
- else if(action==="seed"){if(payload&&payload.orders&&payload.orders.length){await fetch(sbUrl("pedidos?on_conflict=id"),{method:"POST",headers:sbHeaders({"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify(payload.orders.map(pickCols))});}if(payload&&payload.config){await apiPost("config",payload.config);}}
-}catch(e){console.warn("sync",e);}}
+async function apiPost(action,payload){setSave("saving");try{
+ var r=null;
+ if(action==="upsert"){r=await fetch(sbUrl("pedidos?on_conflict=id"),{method:"POST",headers:sbHeaders({"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify([pickCols(payload)])});}
+ else if(action==="delete"){r=await fetch(sbUrl("pedidos?id=eq."+encodeURIComponent(payload.id)),{method:"DELETE",headers:sbHeaders()});}
+ else if(action==="config"){r=await fetch(sbUrl("config?on_conflict=id"),{method:"POST",headers:sbHeaders({"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify([{id:1,dados:payload}])});}
+ else if(action==="seed"){if(payload&&payload.orders&&payload.orders.length){r=await fetch(sbUrl("pedidos?on_conflict=id"),{method:"POST",headers:sbHeaders({"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify(payload.orders.map(pickCols))});}if(payload&&payload.config){await apiPost("config",payload.config);}}
+ if(r&&!r.ok){var t=await r.text();throw new Error("HTTP "+r.status+" "+t.slice(0,180));}
+ setSave("ok");return true;
+}catch(e){setSave("err");lastSaveErr=String((e&&e.message)||e);console.warn("sync",action,e);return false;}}
 const CXCOLS=["id","data","tipo","categoria","descr","valor"];
 function pickCx(o){const r={};CXCOLS.forEach(k=>{r[k]=(o&&o[k]!==undefined&&o[k]!==null)?o[k]:"";});return r;}
 async function cxFetch(){try{const r=await fetch(sbUrl("caixa?select=*&order=data.asc"),{headers:sbHeaders()});if(!r.ok)return null;const j=await r.json();j.forEach(o=>{o.id=Number(o.id);o.valor=Number(o.valor)||0;CXCOLS.forEach(k=>{if(o[k]===null||o[k]===undefined)o[k]="";});});return j;}catch(e){return null;}}
-function syncCx(o){if(SHEET_URL)fetch(sbUrl("caixa?on_conflict=id"),{method:"POST",headers:sbHeaders({"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify([pickCx(o)])}).catch(e=>console.warn("cx",e));}
-function syncCxDel(id){if(SHEET_URL)fetch(sbUrl("caixa?id=eq."+encodeURIComponent(id)),{method:"DELETE",headers:sbHeaders()}).catch(e=>console.warn("cx",e));}
+function syncCx(o){if(!SHEET_URL)return;setSave("saving");fetch(sbUrl("caixa?on_conflict=id"),{method:"POST",headers:sbHeaders({"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify([pickCx(o)])}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);setSave("ok");}).catch(function(e){setSave("err");lastSaveErr=String((e&&e.message)||e);console.warn("cx",e);});}
+function syncCxDel(id){if(!SHEET_URL)return;setSave("saving");fetch(sbUrl("caixa?id=eq."+encodeURIComponent(id)),{method:"DELETE",headers:sbHeaders()}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);setSave("ok");}).catch(function(e){setSave("err");lastSaveErr=String((e&&e.message)||e);console.warn("cx",e);});}
 function userName(){try{return localStorage.getItem("crm_user_name")||"Equipe";}catch(e){return "Equipe";}}
 function setUserName(n){try{if(n)localStorage.setItem("crm_user_name",n);}catch(e){}}
 function logAct(acao){if(!SHEET_URL)return;const row={id:Date.now()*1000+Math.floor(Math.random()*999),ts:new Date().toISOString(),usuario:userName(),acao:String(acao).slice(0,300)};
@@ -721,6 +725,9 @@ async function init(){
  save();initFilters();renderAll();setStatus();
 }
 function reloadData(){init();}
+var lastSaveErr="";
+function setSave(st){var e=document.getElementById("saveStat");if(!e)return;if(st==="saving"){e.textContent="⏳ Salvando…";e.style.color="#c2872b";}else if(st==="ok"){e.textContent="✓ Salvo";e.style.color="#2e7d46";setTimeout(function(){if(e&&e.textContent==="✓ Salvo")e.textContent="";},1500);}else{e.textContent="⚠ não salvou · toque em Salvar tudo";e.style.color="#c0271f";}}
+async function salvarTudo(){if(!SHEET_URL){alert("Você está em modo local (sem nuvem). Faça login para salvar para a equipe.");return;}setSave("saving");var ok=true,msg="";try{var os=(state.orders||[]).map(pickCols);for(var i=0;i<os.length;i+=200){var r=await fetch(sbUrl("pedidos?on_conflict=id"),{method:"POST",headers:sbHeaders({"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify(os.slice(i,i+200))});if(!r.ok){ok=false;msg="pedidos -> HTTP "+r.status+" "+(await r.text()).slice(0,160);break;}}if(ok){var rc=await fetch(sbUrl("config?on_conflict=id"),{method:"POST",headers:sbHeaders({"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify([{id:1,dados:{insumos:state.insumos,precos:state.precos,clientsMeta:state.clientsMeta,fixos:state.fixos,caixaBase:state.caixaBase||0}}])});if(!rc.ok){ok=false;msg="config (saldo/precos) -> HTTP "+rc.status+" "+(await rc.text()).slice(0,160);}}if(ok&&(state.caixa||[]).length){var cs=state.caixa.map(pickCx);for(var j=0;j<cs.length;j+=200){var rr=await fetch(sbUrl("caixa?on_conflict=id"),{method:"POST",headers:sbHeaders({"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify(cs.slice(j,j+200))});if(!rr.ok){ok=false;msg="caixa -> HTTP "+rr.status+" "+(await rr.text()).slice(0,160);break;}}}}catch(e){ok=false;msg=String((e&&e.message)||e);}if(ok){setSave("ok");alert("Tudo salvo na nuvem com sucesso ✓");}else{setSave("err");alert("NAO consegui salvar. Motivo:\n\n"+msg+"\n\nProvavel causa: a tabela config/caixa nao existe ou esta bloqueada no Supabase. Rode o SQL schema_completo_supabase.sql e tente de novo.");}}
 let authUser="";
 function showLogin(){var l=document.getElementById('loginScreen');if(l)l.style.display='flex';var e=document.getElementById('lg_err');if(e)e.textContent="";var nm=document.getElementById('lg_nome');if(nm&&!nm.value){var u=userName();if(u&&u!=="Equipe")nm.value=u;}setTimeout(function(){var em=document.getElementById('lg_email');if(em)em.focus();},60);}
 function hideLogin(){var l=document.getElementById('loginScreen');if(l)l.style.display='none';}
